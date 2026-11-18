@@ -12,6 +12,12 @@ pub fn tuned_default_plugins(primary_window: Window) -> PluginGroupBuilder {
     // not a race between two systems. `WOW_COMPUTE_THREADS=<n>` pins the pool's size, a
     // measurement lever for the per-spawn wake cost.
     let serial = std::env::var("WOW_THREADS").ok().as_deref() == Some("1");
+    #[cfg(target_os = "horizon")]
+    let horizon_compute_threads = if serial {
+        1
+    } else {
+        compute_threads().unwrap_or_else(horizon_cores)
+    };
     let split = pool_split(
         bevy::tasks::available_parallelism(),
         if serial { Some(1) } else { compute_threads() },
@@ -58,9 +64,12 @@ pub fn tuned_default_plugins(primary_window: Window) -> PluginGroupBuilder {
                     // wotlk-nx: std has no CPU count on Horizon; one worker per core of the process
                     // (benilla-horizon's thread.c).
                     #[cfg(target_os = "horizon")]
-                    min_threads: horizon_cores(),
+                    min_threads: horizon_compute_threads,
                     #[cfg(not(target_os = "horizon"))]
                     min_threads: split.compute,
+                    #[cfg(target_os = "horizon")]
+                    max_threads: horizon_compute_threads,
+                    #[cfg(not(target_os = "horizon"))]
                     max_threads: split.compute,
                     ..TaskPoolOptions::default().compute
                 },
