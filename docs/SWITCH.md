@@ -12,7 +12,7 @@ interface, though parts of the data and gameplay layers still use 1.12.1 layouts
 | Rendering | Bevy on wgpu (Vulkan, Metal, DX12) | Bevy on wgpu on our deko3d wgpu-hal backend, in wgpu's GL slot ([SWITCH-RENDER.md](SWITCH-RENDER.md)); shaders go naga → GLSL → uam, cached on the SD card |
 | Audio | kira on cpal | kira on audout, at 48 kHz |
 | Window, input | winit | `crates/benilla-app/src/switch.rs`: libnx's default window, the applet loop, HID (touch, USB keyboard and mouse, the Joy-Con as Bevy's gamepad), the system keyboard; each input also goes out as a `WindowEvent`, the stream winit fills on the PC and the UI reads clicks and keys from |
-| Controller play | — | benilla-pad (`crates/benilla-pad`), with Nintendo button names and a Switch layout |
+| Controller play | — | not ported: Joy-Con HID reaches Bevy as gamepad input, but no 3.3.5a pad layer or `30300` addon is installed; touch and USB keyboard/mouse are the usable inputs |
 | Files | the WoW folder | `sdmc:/wotlk-nx/Data` (the user's client) and `sdmc:/wotlk-nx/benilla-config`; `sdmc:/wotlk-nx/benilla.env` sets the login and switches |
 | Threads, memory | OS | libnx threads spread over the 3 cores, a compute worker per core, and a thread-caching allocator in front of newlib's malloc (`crates/benilla-horizon`) |
 | Updates | — | a numbered release looks for a newer `build-<n>` on GitHub while it loads (`update.c`, `switch/release.sh`) |
@@ -24,7 +24,7 @@ interface, though parts of the data and gameplay layers still use 1.12.1 layouts
 3. The deko3d wgpu-hal backend: a cleared screen, then shaders, pipelines and Bevy (`switch/clear/`, `switch/cube/`),
    from wow-nx.
 4. benilla-wotlk: the login screen, a 3.3.5a server login, the world and the stock interface.
-5. The Joy-Con, the launch picture, the updater, and the speed work in Open work.
+5. The Joy-Con HID path, the launch picture, the updater, and the speed work in Open work.
 
 ## Open work
 
@@ -36,6 +36,10 @@ each pipeline), and `WOTLKNX_PROFILE=1` samples every thread 250 times a second 
 Fixed on 2026-10-25, for the record: a world-load crash (the GPU ring full under a loading burst; a timed-out
 kickoff is now retried while the channel is healthy, `kickoff.c`) and status bars with chunks missing (deko3d's tile
 height for an 8-row texture was taller than the image; `create_texture` picks the smallest that covers it).
+
+Fixed on 2026-11-18: the Horizon compute pool no longer asks Bevy for three workers when the runtime reports one
+(`boot.rs`), and the launcher links the Horizon `pthread_atfork`, `__syscall_thread_create` and `nvGpuChannelKickoff`
+wrappers (`build.rs`) so rand's reseeding and thread startup work on the console.
 
 Speed: 17–22 fps in the world at 720p on the first release build (`switch-ship`: dependencies in one codegen unit
 each). Profiles from test builds: in the world the main
@@ -79,19 +83,25 @@ To test:
   merged here). deko3d stays the Switch's renderer; trying Vulkan against it is on the list.
 - **Releases and the updater** (`switch/release.sh`, `crates/benilla-horizon/update.c`): publish a build, then a newer
   one, and update from the first on the console.
-- **Controller play:** Joy-Con HID events reach Bevy as gamepad input; benilla-pad and its 1.12 addon are not ported
-  yet. The controller crate needs wotlk's VM seam and a 3.3.5a addon before the gamepad bar can be used.
+- **Server and Warden.** Login, realm list, character select and character creation work on the console. World entry
+  on an external server is still being checked. Use a 3.3.5a server with Warden disabled until it is known good. A
+  clean build-12340 `Wow.exe` beside `Data` (`sdmc:/wotlk-nx/Wow.exe`) is needed for Warden memory checks; it does not
+  make an unknown Warden module or seed answerable, which ends the session.
 
-To finish:
+### Controller TODO
 
-- **Nintendo button names everywhere.** The bar, hint lines, keyboard, wheels, chat and keybind screen say B/A/Y/X,
-  L/R, ZL/ZR, LS/RS and +/− under the Nintendo symbols (`P.Name`, `P.Hint` in the BenillaPad addon's Core.lua). Still
-  in Xbox names: the controller menu's descriptions (Menu.lua; a word-for-word swap would turn the article "A" into
-  "B", so they need Nintendo wording of their own), the README's tables, and any other text that names a button.
-- **Round cooldown sweeps.** The gamepad bar's round buttons draw the stock square cooldown model at the largest
-  square inside the circle (benilla-pad's Bar.lua). True circles: let a Model
-  pane's quad take the circle mask the round portraits use (`circular` in the UI quad shader), and the addon mark its
-  cooldowns with it.
+Joy-Con HID events reach Bevy as gamepad input; benilla-pad and its 1.12 addon are not ported yet. The usable console
+inputs remain touch and USB keyboard/mouse.
+
+1. **ConsolePortLK first.** It is maintained, targets `30300`/build 12340, and has the right addon shape. Run it through
+   the addon harness, then check secure handlers, state drivers, custom and override bindings, SavedVariables and
+   addon-only globals before trying it on the console.
+2. **Native pad bridge second.** Prototype a small `run_with` plugin that reads Bevy gamepad state and feeds the UI's
+   binding and pointer path; port the benilla-pad architecture rather than loading its `11200` addon.
+3. **ShaguController as reference only.** It is a small MIT `11200` binding/UI layout, useful for a binding smoke test
+   but hard-rejected by the version gate and otherwise 1.12-specific.
+4. **Finish the pad presentation.** Nintendo wording in every menu and round cooldown sweeps remain open from the 1.12
+   port.
 
 Not done on purpose: no clock changes (stock CPU/GPU), no features turned off for speed.
 
@@ -104,6 +114,7 @@ Not done on purpose: no clock changes (stock CPU/GPU), no features turned off fo
 ## Credits
 
 benilla-wotlk by [Onixaz](https://github.com/Onixaz/benilla-wotlk) and contributors (MIT/Apache-2.0), originally
-benilla by [samwhosung](https://github.com/samwhosung). Switch port: nx-mod. Controller play:
-[benilla-pad](https://github.com/lucasvallejodev/benilla-gamepad) by lucasvallejodev (MIT/Apache-2.0). The self-updater
-and its HTTPS client follow [haloce-nx](https://github.com/nx-mod/haloce-nx)'s, by thelinkin3000 and nx-mod (CC0).
+benilla by [samwhosung](https://github.com/samwhosung). Switch port: nx-mod. Controller work uses
+[benilla-pad](https://github.com/lucasvallejodev/benilla-gamepad) by lucasvallejodev (MIT/Apache-2.0) as its reference.
+The self-updater and its HTTPS client follow [haloce-nx](https://github.com/nx-mod/haloce-nx)'s, by thelinkin3000 and
+nx-mod (CC0).

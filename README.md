@@ -8,8 +8,8 @@
 
 [benilla-wotlk](https://github.com/Onixaz/benilla-wotlk), a World of Warcraft 3.3.5a client written in Rust and Bevy,
 ported to the Nintendo Switch. Like [wow-nx](https://github.com/nx-mod/wow-nx), it draws through wgpu on a deko3d
-backend, the Switch's native GPU API, and plays with the Joy-Con through
-[benilla-pad](https://github.com/lucasvallejodev/benilla-gamepad).
+backend, the Switch's native GPU API. Touch and USB keyboard/mouse work; Joy-Con HID reaches the app as gamepad input,
+but controller play is not enabled yet.
 
 > [!NOTE]
 > You need your own 3.3.5a client (build 12340) for the game data, and a 3.3.5a server to play on. This repository
@@ -17,17 +17,20 @@ backend, the Switch's native GPU API, and plays with the Joy-Con through
 
 ## Status
 
-The Switch port is being brought up from wow-nx: the deko3d renderer, the Rust std target and libnx layer, and the
-controller support are being adapted to 3.3.5a. There is no release yet, so the install paths and build commands below
-describe where the port is headed.
+The Switch port is being brought up from wow-nx: the deko3d renderer, the Rust std target and the libnx layer work, and
+the controller support is still being adapted to 3.3.5a. There is no release yet, so the install paths and build
+commands below describe where the port is headed.
 
-On the desktop, benilla-wotlk can authenticate, enter the world and run the stock 3.3.5a interface, though parts of the
-data and gameplay layers still use 1.12.1 layouts or behavior.
+On the console, the login screen, authentication, realm list, character select and character creation work. World entry
+on external servers is still being checked; use a server with Warden disabled until that is confirmed. On the desktop,
+benilla-wotlk can authenticate, enter the world and run the stock 3.3.5a interface, though parts of the data and
+gameplay layers still use 1.12.1 layouts or behavior.
 
 ## Install
 
-1. Copy your 3.3.5a client's `Data` folder to `sdmc:/wotlk-nx/Data`. Add `Interface/AddOns` there too if you want your
-   addons.
+1. Copy your 3.3.5a client's `Data` folder to `sdmc:/wotlk-nx/Data`. Copy the clean build-12340 `Wow.exe` from the same
+   client to `sdmc:/wotlk-nx/Wow.exe` (`WoW.exe` and `wow.exe` are also read) so Warden memory checks have the reference
+   image. Add `Interface/AddOns` there too if you want your addons.
 2. Put `wotlk-nx.nro` in `sdmc:/wotlk-nx/` (or `sdmc:/switch/`) and start it from the homebrew menu. A release build
    looks for newer releases on GitHub while it loads and offers them; `WOTLKNX_UPDATE=0` turns that off.
 3. Optional: `sdmc:/wotlk-nx/benilla.env` sets the server, login and character (below). Without it, type them on the
@@ -53,7 +56,10 @@ Vertical sync is the game's own Video option.
 
 ## Controls
 
-With the Joy-Con (benilla-pad; its controller menu, −, rebinds every button on every layer):
+Touch moves the cursor and clicks; a tap on a text box opens the system keyboard. A USB keyboard and mouse work as on
+the PC. Joy-Con buttons and sticks are emitted as Bevy gamepad events but are not bound to the game or UI yet.
+
+Planned Joy-Con layout, not active until the 3.3.5a controller layer is ported:
 
 | Button | In the world | In menus and windows |
 |---|---|---|
@@ -68,9 +74,6 @@ With the Joy-Con (benilla-pad; its controller menu, −, rebinds every button on
 | Right stick press | interact: talk, loot, skin, attack | |
 | + | window wheel | |
 | − | controller menu | |
-
-Touch moves the cursor and clicks; a tap on a text box opens the system keyboard. A USB keyboard and mouse work as on
-the PC.
 
 ## Build
 
@@ -97,10 +100,10 @@ The PC client is upstream's: [benilla-wotlk](https://github.com/Onixaz/benilla-w
 - `crates/benilla-uam`: uam, deko3d's shader compiler, built into the NRO.
 - `crates/benilla-horizon`: what libnx gives Rust (random numbers, `sysconf`, sockets), a thread-caching allocator,
   threads spread over the cores, the launch picture, the system keyboard, the self-updater and a sampling profiler.
-- `crates/benilla-app/src/switch.rs`: the window, the applet loop, HID input (the Joy-Con as a gamepad), the SD card
-  paths and `benilla.env`.
-- `crates/benilla-pad`: lucasvallejodev's controller crate, made to work with today's upstream, with Nintendo button
-  names and a Switch layout.
+- `crates/benilla-app/src/switch.rs`: the window, the applet loop, HID input (the Joy-Con as a gamepad, not bound yet),
+  the SD card paths and `benilla.env`.
+- Controller play is open work: there is no `crates/benilla-pad` in this tree yet. Its Rust layer needs a 3.3.5a UI
+  seam and a `30300` addon before the gamepad bar can be used.
 - `main` mirrors upstream; this work is on `switch`.
 
 ## Credits
