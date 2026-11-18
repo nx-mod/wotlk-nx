@@ -277,7 +277,7 @@ impl Plugin for CursorPlugin {
                     // platforms' software cursor: the frame's last word on the pointer.
                     .after(benilla_world::schedule::WorldStage::Present),
             );
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(any(target_os = "macos", target_os = "horizon")))]
         app.init_resource::<other::PayloadCursorImages>()
             .add_systems(Startup, other::setup.after(AssetSet::Open))
             .add_systems(
@@ -305,7 +305,7 @@ impl Plugin for CursorPlugin {
 /// `gxCursor` off the OS cursor is a transparent image and the cursor draws in the frame instead,
 /// at the pointer, as the reference's device draws its cursor texture over each frame it presents
 /// (`0x687a90`), so it moves at the frame rate.
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "horizon")))]
 mod other {
     use super::{cursor_path, payload_icon, CURSOR_STEMS};
     use benilla_assets::{cursor_texture, WorldAssets};

@@ -512,6 +512,7 @@ dependencies = [
  "benilla-assets",
  "benilla-cinematics",
  "benilla-formats",
+ "benilla-horizon",
  "benilla-protocol",
  "benilla-srp",
  "benilla-ui",
@@ -548,6 +549,7 @@ dependencies = [
  "symphonia",
  "toml",
  "wgpu",
+ "wgpu-hal",
  "windows-sys 0.59.0",
  "winit",
 ]
@@ -612,6 +614,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "benilla-horizon"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "getrandom 0.2.17",
+ "getrandom 0.3.4",
+]
+
+[[package]]
 name = "benilla-m2"
 version = "0.1.0"
 dependencies = [
@@ -650,6 +661,14 @@ dependencies = [
  "num-bigint",
  "rand 0.8.6",
  "sha1",
+]
+
+[[package]]
+name = "benilla-uam"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "naga",
 ]
 
 [[package]]
@@ -842,8 +861,6 @@ dependencies = [
 [[package]]
 name = "bevy_asset"
 version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29f86fed15972b9fb1a3f7b092cf0390e67131caaedab15a2707c043e3a3c886"
 dependencies = [
  "async-broadcast",
  "async-channel",
@@ -4188,8 +4205,6 @@ checksum = "34b357333733e8260735ba5894eb928c02ecc69c78715f01a8019e7fa7f2db4c"
 [[package]]
 name = "libc"
 version = "0.2.186"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
 name = "libloading"
@@ -4368,8 +4383,6 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 [[package]]
 name = "memmap2"
 version = "0.9.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "714098028fe011992e1c3962653c96b2d578c4b4bce9036e15ff220319b1e0e3"
 dependencies = [
  "libc",
 ]
@@ -7239,8 +7252,6 @@ checksum = "a28ac98ddc8b9274cb41bb4d9d4d5c425b6020c50c46f25559911905610b4a88"
 [[package]]
 name = "wgpu"
 version = "27.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfe68bac7cde125de7a731c3400723cadaaf1703795ad3f4805f187459cd7a77"
 dependencies = [
  "arrayvec",
  "bitflags 2.11.1",
@@ -7268,8 +7279,6 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "27.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27a75de515543b1897b26119f93731b385a19aea165a1ec5f0e3acecc229cae7"
 dependencies = [
  "arrayvec",
  "bit-set",
@@ -7341,10 +7350,12 @@ dependencies = [
  "android_system_properties",
  "arrayvec",
  "ash",
+ "benilla-uam",
  "bit-set",
  "bitflags 2.11.1",
  "block",
  "bytemuck",
+ "cc",
  "cfg-if",
  "cfg_aliases",
  "core-graphics-types 0.2.0",

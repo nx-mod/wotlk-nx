@@ -12,24 +12,22 @@ workspace = true
 # `dev` compiles in the instruments; the player build (`scripts/check.sh`) has no defaults.
 default = ["dev"]
 # The asset, format and world crates default `dev` on, so they come in without it, forwarded here.
-dev = ["benilla-assets/dev", "benilla-formats/dev", "benilla-world/dev"]
+dev = ["benilla-assets/dev", "benilla-formats/dev", "benilla-world/dev", "dep:bevy_egui"]
 tracy = ["bevy/trace_tracy"]
 # Writes every system's per-run span to `trace-<ts>.json` in the cwd.
 trace_chrome = ["bevy/trace_chrome"]
 
 [dependencies]
 anyhow.workspace = true
-# The EditBox clipboard, on the main thread as NSPasteboard requires; bevy_egui's 3.x.
-arboard = "3"
 benilla-ui = { path = "../benilla-ui" }
 benilla-cinematics = { path = "../benilla-cinematics" }
 bevy.workspace = true
 # `noop`: the characterization rig's stub device (`Device::noop`), which seats the render device
 # headless frames' main-world systems take; a normal dependency so tests and builds share artifacts.
 wgpu = { workspace = true, features = ["noop"] }
-# The debug panel, `dev` only, yet a dependency of every build: as an optional one it would turn
-# on Bevy, `syn` and `ttf-parser` features the player build lacks, and its tests would rebuild Bevy.
-bevy_egui = "0.39"
+# The debug panel's egui layer, `dev` only. wotlk-nx makes it optional so the player build has no
+# bevy_winit/winit chain (and no rustix against the Switch's libc).
+bevy_egui = { version = "0.39", optional = true }
 bytemuck = { version = "1", features = ["derive"] }
 # `f16` decode for the `WOW_BOOTH_DUMP` dump of the `Rgba16Float` booth targets.
 half = "2"
@@ -56,18 +54,12 @@ md-5 = "0.10"
 avian3d = "0.6"
 # Shapes and rasterizes `FontString` text standalone (`ui_text`), at bevy_text's own 0.16.
 cosmic-text = "0.16"
-# The layout's unshifted character per key (`KeyEventExtModifierSupplement`), which bevy's
-# `KeyboardInput` drops; bevy_winit's own 0.30, whose features it sets.
-winit = { version = "0.30", default-features = false }
 # `cosmic-text`'s font database, named by `ui_text`; must stay the version it depends on.
 fontdb = "0.23"
 # The mixer. Its `cpal` backend stays off on every target: `sound::output` is our own backend.
 kira = { version = "0.12", default-features = false, features = ["mp3", "wav", "pcm", "adpcm"] }
 # Aborts a debug build on an allocation in the audio IO callback or render pass; off in release.
 assert_no_alloc = "1.1"
-# The release allocator: the OS heap (Windows HeapAlloc, glibc malloc) serializes and
-# fragments under Bevy's per-frame churn; mimalloc measured faster at Northshire Abbey.
-mimalloc = { version = "0.1", default-features = false }
 # `MediaSource`: our source raises kira's decode thread's QoS; must stay kira's version.
 symphonia = { version = "0.6", default-features = false }
 # The audio threads' lock-free SPSC rings (output, mix tap); kira's version, so the graph has one.
@@ -78,9 +70,24 @@ rand = "0.8"
 
 # Wayland clipboard over the standard `wl_data_device`; arboard's speaks `wlr-data-control`,
 # which GNOME does not implement.
-[target.'cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))'.dependencies]
+[target.'cfg(all(unix, not(any(target_os = "macos", target_os = "android", target_os = "horizon"))))'.dependencies]
 raw-window-handle = "0.6"
 smithay-clipboard = "0.7"
+
+# wotlk-nx: what the Switch has none of: winit (the window and keyboard; the Switch build brings its own), the
+# clipboard, and the platform half of bevy's features (root Cargo.toml).
+[target.'cfg(not(target_os = "horizon"))'.dependencies]
+arboard = "3"
+winit = { version = "0.30", default-features = false }
+mimalloc = { version = "0.1", default-features = false }
+bevy = { workspace = true, features = ["default_platform", "custom_cursor"] }
+
+# wotlk-nx: the Switch's own (src/switch.rs): the window handle, the libnx platform seam, and the deko3d hooks.
+[target.'cfg(target_os = "horizon")'.dependencies]
+raw-window-handle = "0.6"
+benilla-horizon = { path = "../benilla-horizon" }
+wgpu-hal = { version = "27", default-features = false }
+bevy = { workspace = true, features = ["gamepad"] }
 
 # A native NSCursor: winit's cursor rects revert to the arrow under a continuous render loop.
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -103,7 +110,7 @@ objc2-foundation = { version = "0.2", features = ["NSArray", "NSData", "NSGeomet
 
 # The audio device layer off macOS (`sound::output::cpal`); on macOS cpal cannot rebuild on a
 # lost default device and drops the IO-cycle timestamp.
-[target.'cfg(not(target_os = "macos"))'.dependencies]
+[target.'cfg(not(any(target_os = "macos", target_os = "horizon")))'.dependencies]
 cpal = "0.17"
 
 # Windows CPU clocks for `perf::clock`; `GetLocalTime` for the log stamp (`ui_chat::logging`); the

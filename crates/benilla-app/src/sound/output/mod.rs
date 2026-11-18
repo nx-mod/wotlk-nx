@@ -32,8 +32,12 @@
 #[cfg(target_os = "macos")]
 #[path = "coreaudio.rs"]
 mod device;
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "horizon")))]
 #[path = "cpal.rs"]
+mod device;
+// wotlk-nx: the Switch's, on libnx's audout.
+#[cfg(target_os = "horizon")]
+#[path = "switch.rs"]
 mod device;
 
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, AtomicUsize, Ordering};

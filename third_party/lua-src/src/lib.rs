@@ -141,6 +141,7 @@ impl Build {
             _ if target.contains("apple-ios") => {
                 config.define("LUA_USE_POSIX", None);
             }
+            _ if target.contains("nintendo-switch") => {}
             _ if target.contains("windows") => {
                 // Defined in Lua >= 5.3
                 config.define("LUA_USE_WINDOWS", None);

@@ -3,7 +3,7 @@
 /// Whole-process CPU seconds so far, user + system across every thread: work per frame, which
 /// other load on the machine barely moves, unlike wall frame time. `None` off Unix and Windows.
 pub(crate) fn process_cpu_secs() -> Option<f64> {
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "horizon")))]
     {
         // SAFETY: `getrusage` fully writes the out-param and reads nothing from it; zeroed is
         // valid for a struct of plain integers.
@@ -47,7 +47,7 @@ pub(crate) fn process_cpu_secs() -> Option<f64> {
             Some(filetime_secs(kernel) + filetime_secs(user))
         }
     }
-    #[cfg(not(any(unix, windows)))]
+    #[cfg(any(not(any(unix, windows)), target_os = "horizon"))]
     {
         None
     }
@@ -93,7 +93,7 @@ fn filetime_secs(t: windows_sys::Win32::Foundation::FILETIME) -> f64 {
 /// The process's `(minor, major)` page faults so far. Minor faults are kernel time no user-mode
 /// sampler sees; per frame they say whether [`thread_cpu_table`]'s `sys` is allocator churn.
 pub(crate) fn process_faults() -> Option<(u64, u64)> {
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "horizon")))]
     {
         // SAFETY: as in `process_cpu_secs`: `getrusage` fills the out-param completely.
         unsafe {
@@ -104,7 +104,7 @@ pub(crate) fn process_faults() -> Option<(u64, u64)> {
             Some((ru.ru_minflt as u64, ru.ru_majflt as u64))
         }
     }
-    #[cfg(not(unix))]
+    #[cfg(any(not(unix), target_os = "horizon"))]
     {
         None
     }
@@ -114,7 +114,7 @@ pub(crate) fn process_faults() -> Option<(u64, u64)> {
 /// itself there with a [`NonSendMarker`](bevy::ecs::system::NonSendMarker) param, or it reads
 /// whichever worker ran the system. `None` off Unix and Windows.
 pub(crate) fn main_thread_cpu_secs() -> Option<f64> {
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "horizon")))]
     {
         // SAFETY: `clock_gettime` fully writes the out-param and reads nothing from it; zeroed is
         // valid for two plain integers.
@@ -157,7 +157,7 @@ pub(crate) fn main_thread_cpu_secs() -> Option<f64> {
             Some(filetime_secs(kernel) + filetime_secs(user))
         }
     }
-    #[cfg(not(any(unix, windows)))]
+    #[cfg(any(not(any(unix, windows)), target_os = "horizon"))]
     {
         None
     }

@@ -1054,6 +1054,12 @@ fn wanted_mode(cfg: &VideoConfig, monitor: Option<(Entity, &bevy::window::Monito
 /// reference's window creation (`0x68ebb0`) takes from `AdjustWindowRectEx`; zero before the OS
 /// window exists.
 fn outer_frame(window: Entity) -> UVec2 {
+    #[cfg(target_os = "horizon")]
+    {
+        let _ = window;
+        UVec2::ZERO
+    }
+    #[cfg(not(target_os = "horizon"))]
     bevy::winit::WINIT_WINDOWS.with_borrow(|windows| {
         windows.get_window(window).map_or(UVec2::ZERO, |w| {
             let (outer, inner) = (w.outer_size(), w.inner_size());
@@ -1137,17 +1143,20 @@ fn apply_window_mode(
     // The boot window's physical size on a run that sizes its own window, read once.
     mut own_size: Local<Option<Option<UVec2>>>,
     // `WINIT_WINDOWS` is the main thread's.
-    _main: bevy::ecs::system::NonSendMarker,
+    #[cfg(not(target_os = "horizon"))] _main: bevy::ecs::system::NonSendMarker,
 ) {
     let forced = std::mem::replace(&mut *last_restart, restarts.0) != restarts.0;
     let monitor = monitors.iter().next();
     let first_monitor = monitor.is_some() && !std::mem::replace(&mut *saw_monitor, true);
     if reveal.tick(first_monitor) {
         if let Ok((entity, mut window)) = windows.single_mut() {
+            #[cfg(target_os = "horizon")]
+            let _ = entity;
             if !window.visible {
                 window.visible = true;
                 // The OS window too, this frame: `bevy_winit` keeps updating a hidden window only
                 // while the component says hidden, and applies the component only in an update.
+                #[cfg(not(target_os = "horizon"))]
                 bevy::winit::WINIT_WINDOWS.with_borrow(|windows| {
                     if let Some(w) = windows.get_window(entity) {
                         w.set_visible(true);

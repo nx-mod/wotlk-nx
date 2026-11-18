@@ -21,14 +21,24 @@ anyhow = "1.0.102"
 # and `vorbis`, and the client mixes through kira. Add a feature by name, never `2d`/`3d`/`ui`; a
 # plugin that takes bevy with its default features brings the audio stack back too.
 bevy = { version = "0.18.1", default-features = false, features = [
-    "default_app",
-    "default_platform",
-    "2d_bevy_render",
-    "3d_bevy_render",
-    "ui_api",
-    "ui_bevy_render",
+    # wotlk-nx: the bundles' features one by one, without `default_platform` or `custom_cursor` (which turn on winit):
+    # the Switch has neither. benilla-app adds those two back everywhere else, so the PC build has the same set.
+    # default_app, without custom_cursor
+    "async_executor", "bevy_asset", "bevy_input_focus", "bevy_log", "bevy_state", "bevy_window", "reflect_auto_register",
+    # common_api
+    "bevy_animation", "bevy_camera", "bevy_color", "bevy_gizmos", "bevy_image", "bevy_mesh", "bevy_shader", "bevy_text",
+    "hdr", "png",
+    # 2d_bevy_render
+    "bevy_sprite", "bevy_sprite_render", "bevy_post_process", "bevy_gizmos_render",
+    # 3d_bevy_render
+    "bevy_light", "bevy_mikktspace", "ktx2", "morph_animation", "morph", "smaa_luts", "tonemapping_luts", "zstd_rust",
+    "bevy_render", "bevy_core_pipeline", "bevy_anti_alias", "bevy_gltf", "bevy_pbr", "gltf_animation",
+    # ui_api, ui_bevy_render
+    "bevy_ui", "bevy_ui_render",
     "scene",
     "picking",
+    # the Switch's part of default_platform
+    "std", "multi_threaded", "default_font",
     # Names systems and parameters in ECS diagnostics (else "Enable the debug feature to see the
     # name"), which `benilla-worldview` reports; in every build, so dev and player share Bevy.
     "debug",
@@ -49,11 +59,21 @@ kira = { path = "third_party/kira" }
 # `desired_maximum_frame_latency` moves (`third_party/bevy_render/BENILLA.md`).
 bevy_render = { path = "third_party/bevy_render" }
 # wgpu-hal 27.0.4, patched to recycle Metal staging buffers instead of allocating one per
-# `write_buffer` (`third_party/wgpu-hal/BENILLA.md`).
+# `write_buffer` (`third_party/wgpu-hal/BENILLA.md`), and with wotlk-nx's deko3d backend in wgpu's GL slot on Horizon
+# (`docs/SWITCH-RENDER.md`).
 wgpu-hal = { path = "third_party/wgpu-hal" }
 # bevy_ecs 0.18.1, patched so a query walks only the archetypes that hold an entity
 # (`third_party/bevy_ecs/BENILLA.md`).
 bevy_ecs = { path = "third_party/bevy_ecs" }
+# wotlk-nx: libc with devkitA64's types for the Switch (`third_party/libc/WOTLK-NX.md`); the patch changes only
+# target_os = "horizon" on aarch64.
+libc = { path = "third_party/libc" }
+# wotlk-nx: wgpu-hal 27 with a deko3d backend standing in for GLES on Horizon (`docs/SWITCH-RENDER.md`).
+wgpu = { path = "third_party/wgpu" }
+wgpu-core = { path = "third_party/wgpu-core" }
+# wotlk-nx: one cfg each for the Switch: bevy_asset without the async-io reactor, memmap2 without mmap.
+bevy_asset = { path = "third_party/bevy_asset" }
+memmap2 = { path = "third_party/memmap2" }
 
 # Two builds. `dev` (`cargo dev`): every run, probe, test and gate builds it, so they share one
 # set of compiled artifacts. `release` is built, never tested: to play (`cargo play`), to ship
@@ -105,3 +125,23 @@ codegen-units = 1
 inherits = "release"
 lto = "thin"
 codegen-units = 16
+
+# wotlk-nx: the Switch build (`switch/build-benilla.sh`), sized for the phone it is built on: no LTO and 16 codegen
+# units, so with -j2 LLVM holds two small units at a time instead of one huge one.
+[profile.switch]
+inherits = "release"
+lto = "off"
+codegen-units = 16
+debug = false
+incremental = false
+
+[profile.switch.package."*"]
+codegen-units = 16
+
+# wotlk-nx: a release for the Switch (`WOTLKNX_SHIP=1 switch/build-benilla.sh`): `switch` with every dependency in one
+# codegen unit; our crates stay at 16 because `benilla-app` in one unit does not fit the build machine.
+[profile.switch-ship]
+inherits = "switch"
+
+[profile.switch-ship.package."*"]
+codegen-units = 1

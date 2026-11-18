@@ -1,4 +1,4 @@
-//! `benilla`: a from-scratch World of Warcraft 1.12.1 client on Bevy. It opens the patch chain from
+//! `benilla`: a from-scratch World of Warcraft 3.3.5a client on Bevy. It opens the patch chain from
 //! the install (`$WOW_DATA`, the project folder on a dev build, else beside the binary), streams
 //! the world around the player through the `benilla-assets` `mpq://` pipeline, and runs the network
 //! session on a background thread ([`net`]).
@@ -16,14 +16,14 @@
 /// `no_alloc` scopes (the output IO callback, the render pass) aborts the process; release builds
 /// carry no wrapper. Not under `doctest`: rustdoc collects a `--release` run's doctests with debug
 /// assertions on, against a release `assert_no_alloc` whose default `disable_release` drops the type.
-#[cfg(all(debug_assertions, not(doctest)))]
+#[cfg(all(debug_assertions, not(doctest), not(target_os = "horizon")))]
 #[global_allocator]
 static ALLOC: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
 
 /// The release allocator, mimalloc: the frame's allocation churn (command queues, extract
 /// buffers, per-system scratch) runs through thread-local heaps instead of the OS heap's
 /// lock. `WOW_SYS_ALLOC` is not a switch: an allocator is chosen at link time.
-#[cfg(all(not(debug_assertions), not(doctest)))]
+#[cfg(all(not(debug_assertions), not(doctest), not(target_os = "horizon")))]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
@@ -116,6 +116,8 @@ mod sound;
 mod spell;
 /// The melee swing refusal's latch + 4 s repeat (`SMSG_ATTACKSWING_*`).
 mod swing_refusal;
+#[cfg(target_os = "horizon")]
+mod switch;
 mod target;
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -227,6 +229,20 @@ use bevy::prelude::*;
 // A launcher stamps the build id at compile time and hands it to [`run`] or [`run_with`];
 // re-exported so the `benilla` shim needs no bevy dependency of its own.
 pub use benilla_world::build_id::BuildId;
+/// wotlk-nx: whether frames reach the screen. On the Switch the first frames are held black while
+/// their pipelines build (the deko3d backend); what should start with the login screen waits for them.
+#[cfg(target_os = "horizon")]
+pub(crate) fn screen_shown() -> bool {
+    wgpu_hal::gles::screen_shown()
+}
+/// wotlk-nx: the start's timing marks (`switch::FinishMark`), nothing off the Switch.
+#[cfg(target_os = "horizon")]
+mod switch_marks {
+    pub(super) fn mark(name: &'static str) -> super::switch::FinishMark {
+        super::switch::FinishMark(name)
+    }
+}
+
 /// The world viewer's entry point, the engine with no game attached, called by the
 /// `benilla-worldview` shim.
 pub use benilla_world::worldview::run as run_worldview;
@@ -242,7 +258,7 @@ pub fn run(build: BuildId) -> AppExit {
     launch(build, None)
 }
 
-/// [`run`], plus `extend` adding a crate's own plugins: how a feature 1.12.1 lacks is built on top
+/// [`run`], plus `extend` adding a crate's own plugins: how an extra feature is built on top
 /// of benilla (`examples/extended_launcher.rs`), the build marked `extended` wherever it is named.
 /// `extend` gets the client fully built and runs before the probe fleet, which sees what it adds.
 pub fn run_with(build: BuildId, extend: impl FnOnce(&mut App)) -> AppExit {
@@ -269,6 +285,8 @@ type Extension<'a> = Box<dyn FnOnce(&mut App) + 'a>;
 
 /// The one body behind [`run`] and [`run_with`], not generic, so a launcher compiles none of it.
 fn launch(build: BuildId, extend: Option<Extension<'_>>) -> AppExit {
+    #[cfg(target_os = "horizon")]
+    switch::prepare();
     // `WOW_HOVER_LOG_REPORT=<csv>` and `WOW_CAPTURE=list` print and exit before any setup.
     if let Ok(path) = std::env::var("WOW_HOVER_LOG_REPORT") {
         dev::report_recorded_hover_log(&path);
@@ -551,6 +569,12 @@ fn launch(build: BuildId, extend: Option<Extension<'_>>) -> AppExit {
     // The probe fleet, last so it observes the fully-built app; compiled out by
     // `--no-default-features`.
     app.add_plugins(dev::DevProbesPlugin);
+
+    #[cfg(target_os = "horizon")]
+    {
+        app.add_plugins(switch_marks::mark("game plugins"));
+        app.add_plugins(switch::SwitchPlugin);
+    }
 
     // Returns the app's exit status: a failed capture sets `AppExit::error()`
     // (`capture::drive_capture`), which must not exit 0 with no PNG on disk.

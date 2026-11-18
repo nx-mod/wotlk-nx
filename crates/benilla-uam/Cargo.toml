@@ -1,0 +1,19 @@
+[package]
+name = "benilla-uam"
+description = "wotlk-nx: uam, deko3d's GLSL to DKSH shader compiler (third_party/uam), for the Switch's wgpu backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+links = "uam"
+
+# Only on the Switch target, or on Linux with `host`; elsewhere the crate is empty.
+[features]
+host = []
+
+[dependencies]
+# GLSL from naga with the options the deko3d backend uses (`escribir_glsl`).
+naga = { version = "27", features = ["glsl-out"] }
+
+[build-dependencies]
+cc = "1"

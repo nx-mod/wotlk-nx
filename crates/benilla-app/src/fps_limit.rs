@@ -70,9 +70,10 @@ pub(crate) struct FpsLimitPlugin;
 impl Plugin for FpsLimitPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FrameCaps>()
-            .insert_resource(Instrumented(benilla_world::bgwin::background_run()))
-            // Winit's default background 60 Hz rail must not override maxFPSBk, including zero.
-            .insert_resource(bevy::winit::WinitSettings::continuous())
+            .insert_resource(Instrumented(benilla_world::bgwin::background_run()));
+        #[cfg(not(target_os = "horizon"))]
+        app.insert_resource(bevy::winit::WinitSettings::continuous());
+        app
             // NonSend keeps the sleep on the main thread, including with a parallel executor.
             .insert_non_send_resource(FrameDeadline::default())
             .add_observer(on_cvar)

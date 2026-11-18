@@ -251,7 +251,12 @@ extern crate std;
 #[cfg(dx12)]
 pub mod dx12;
 /// GLES API internals.
-#[cfg(gles)]
+#[cfg(all(gles, not(target_os = "horizon")))]
+pub mod gles;
+/// wotlk-nx: deko3d (the Switch's GPU API), standing in for the GLES backend on Horizon, so wgpu-core and wgpu see it as
+/// `Backend::Gl` and need no changes (docs/SWITCH-RENDER.md).
+#[cfg(all(gles, target_os = "horizon"))]
+#[path = "deko3d/mod.rs"]
 pub mod gles;
 /// Metal API internals.
 #[cfg(metal)]

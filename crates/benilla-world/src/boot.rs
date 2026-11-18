@@ -16,19 +16,13 @@ pub fn tuned_default_plugins(primary_window: Window) -> PluginGroupBuilder {
         bevy::tasks::available_parallelism(),
         if serial { Some(1) } else { compute_threads() },
     );
-    DefaultPlugins
+    let plugins = DefaultPlugins
         .set(WindowPlugin {
             primary_window: Some(primary_window),
             ..default()
         })
         // Deliberately no `AssetPlugin::file_path`: a baked source path resolves only on the build
         // machine. Every shader is embedded (`embedded://<crate>/shaders/…`), so no root is read.
-        // Quiet wgpu/naga; the ring keeps the last stderr lines for the crash report (`log_ring`).
-        .set(bevy::log::LogPlugin {
-            filter: "wgpu=error,naga=warn".into(),
-            custom_layer: |_| Some(Box::new(crate::log_ring::LogRing)),
-            ..default()
-        })
         // Asset loads parse synchronously on the IO pool, so a dense teleport waits on its width:
         // IO takes half the cores, floor 2 and ceiling 8. Pipeline compiles and collider builds
         // share async compute, so the loading cover's pipeline warm waits on its width: it takes
@@ -61,6 +55,11 @@ pub fn tuned_default_plugins(primary_window: Window) -> PluginGroupBuilder {
                     on_thread_spawn: Some(std::sync::Arc::new(|| {
                         thread_qos::promote_current_thread(thread_qos::QosClass::UserInteractive)
                     })),
+                    // wotlk-nx: std has no CPU count on Horizon; one worker per core of the process
+                    // (benilla-horizon's thread.c).
+                    #[cfg(target_os = "horizon")]
+                    min_threads: horizon_cores(),
+                    #[cfg(not(target_os = "horizon"))]
                     min_threads: split.compute,
                     max_threads: split.compute,
                     ..TaskPoolOptions::default().compute
@@ -77,9 +76,55 @@ pub fn tuned_default_plugins(primary_window: Window) -> PluginGroupBuilder {
         // M2/WMO/ADT load through our own `mpq://` loaders; there is no glTF.
         .disable::<bevy::gltf::GltfPlugin>()
         // No bevy AA: no Fxaa/TAA/SMAA/CAS component anywhere (MSAA is core render, unaffected).
-        .disable::<bevy::anti_alias::AntiAliasPlugin>()
-        // No gamepad input; 1.12's bindings are keyboard/mouse.
-        .disable::<bevy::gilrs::GilrsPlugin>()
+        .disable::<bevy::anti_alias::AntiAliasPlugin>();
+
+    #[cfg(not(target_os = "horizon"))]
+    let plugins = plugins
+        // Quiet wgpu/naga; the ring keeps the last stderr lines for the crash report (`log_ring`).
+        .set(bevy::log::LogPlugin {
+            filter: "wgpu=error,naga=warn".into(),
+            custom_layer: |_| Some(Box::new(crate::log_ring::LogRing)),
+            ..default()
+        })
+        // No gamepad input here: 3.3.5a's bindings are keyboard/mouse. The Switch gets gamepad input
+        // from HID and has no gilrs.
+        .disable::<bevy::gilrs::GilrsPlugin>();
+
+    // wotlk-nx: the Switch's GPU is wgpu's GL slot, where the deko3d backend lives; its log goes to
+    // the SD card, the only place a Switch run can be read back.
+    #[cfg(target_os = "horizon")]
+    let plugins = plugins
+        .set(bevy::render::RenderPlugin {
+            render_creation: bevy::render::settings::WgpuSettings {
+                backends: Some(bevy::render::settings::Backends::GL),
+                ..default()
+            }
+            .into(),
+            ..default()
+        })
+        .set(bevy::log::LogPlugin {
+            filter: "wgpu=error,wgpu_hal::gles=info,naga=warn".into(),
+            custom_layer: |_| {
+                let f = std::fs::File::create("sdmc:/wotlk-nx/benilla.txt").ok()?;
+                Some(Box::new(
+                    bevy::log::tracing_subscriber::fmt::layer()
+                        .with_ansi(false)
+                        .with_writer(std::sync::Mutex::new(f)),
+                ))
+            },
+            ..default()
+        });
+
+    plugins
+}
+
+/// The cores the process may run on (benilla-horizon's thread.c reads the kernel's core mask).
+#[cfg(target_os = "horizon")]
+fn horizon_cores() -> usize {
+    unsafe extern "C" {
+        fn wotlknx_core_count() -> u32;
+    }
+    unsafe { wotlknx_core_count() as usize }.max(1)
 }
 
 /// The IO, async-compute and compute pools' thread counts on `cores`, with an optional compute

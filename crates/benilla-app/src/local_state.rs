@@ -337,6 +337,12 @@ pub(crate) fn write_atomic_bytes(path: &Path, contents: &[u8]) -> std::io::Resul
         f.write_all(contents)?;
         f.sync_all()?;
     }
+    // wotlk-nx: the Switch's file system does not rename over an existing file ("File exists"), so the
+    // old one goes first. A crash between the two leaves the .tmp.
+    #[cfg(target_os = "horizon")]
+    if path.exists() {
+        std::fs::remove_file(path)?;
+    }
     std::fs::rename(&tmp, path)
 }
 
