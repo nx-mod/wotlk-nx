@@ -1,148 +1,122 @@
+# wotlk-nx
+
+> **Our ports:** [wow-nx](https://github.com/nx-mod/wow-nx) (WoW 1.12.1) · [wotlk-nx](https://github.com/nx-mod/wotlk-nx) (WoW 3.3.5a) · [haloce-nx](https://github.com/nx-mod/haloce-nx) (Halo: Combat Evolved)
+
 <p align="center">
   <img src="docs/assets/benilla-wotlk-banner.png" alt="Benilla WotLK" width="100%">
 </p>
 
-# Benilla-Wotlk
+[benilla-wotlk](https://github.com/Onixaz/benilla-wotlk), a World of Warcraft 3.3.5a client written in Rust and Bevy,
+ported to the Nintendo Switch. Like [wow-nx](https://github.com/nx-mod/wow-nx), it draws through wgpu on a deko3d
+backend, the Switch's native GPU API, and plays with the Joy-Con through
+[benilla-pad](https://github.com/lucasvallejodev/benilla-gamepad).
 
-Benilla-WotLK is an effort to preserve and recreate the original Wrath of the Lich King client experience using a modern, independently developed game engine.
-
-Originally based on the [Benilla](https://github.com/samwhosung/benilla) project, which targets World of Warcraft 1.12.1, Benilla-WotLK has since evolved into a standalone project focused exclusively on version 3.3.5a (build 12340).
-
-The client connects to compatible 3.3.5a servers using the original network protocol, loads game assets from your own WotLK installation, and runs the original interface directly from those files. The rendering engine, file format support, networking, and UI runtime are independently implemented in Rust, with the original 3.3.5a client serving as the behavioral reference.
-
-This project does not distribute Blizzard's original client code or game assets. Users must provide their own game data.
+> [!NOTE]
+> You need your own 3.3.5a client (build 12340) for the game data, and a 3.3.5a server to play on. This repository
+> contains no Blizzard content.
 
 ## Status
 
-> [!IMPORTANT]
-> The 3.3.5a port is in progress. The client can authenticate, enter the world, and run the stock
-> 3.3.5a interface, but parts of the data and gameplay layers still use 1.12.1 layouts or behavior.
+The Switch port is being brought up from wow-nx: the deko3d renderer, the Rust std target and libnx layer, and the
+controller support are being adapted to 3.3.5a. There is no release yet, so the install paths and build commands below
+describe where the port is headed.
 
+On the desktop, benilla-wotlk can authenticate, enter the world and run the stock 3.3.5a interface, though parts of the
+data and gameplay layers still use 1.12.1 layouts or behavior.
 
-## Highlights
+## Install
 
-- **Formats:** readers for the MPQ patch chain, BLP, DBC, ADT, WDT, WDL, M2, and WMO, exposed to
-  Bevy as an asset source.
-- **World:** streamed terrain, portal-culled buildings with interior lighting, doodads, ground
-  clutter, swimmable water, sky, weather, and reference-style day/night lighting, fog, and gamma.
-- **Models:** GPU-skinned M2 models with animation, particles, ribbons, spell visuals, character
-  customization, armor compositing, weapons, enchant glows, forms, stealth, and mounts.
-- **Movement:** bidirectional networked movement, server-granted movement modes, camera collision,
-  transports, and taxi flights.
-- **Networking:** SRP6 authentication, world-session crypto, and an ECS object mirror covering
-  movement, chat, combat, spells, groups, raids, quests, trade, mail, auctions, and battlegrounds.
-- **Interface:** a FrameXML and Lua engine that runs the stock 3.3.5a interface and third-party
-  addons from the player's installation and local configuration.
-- **Audio:** music, ambience, and effects with selection and crossfade rules, interior and
-  underwater transitions, and zone reverb.
+1. Copy your 3.3.5a client's `Data` folder to `sdmc:/wotlk-nx/Data`. Add `Interface/AddOns` there too if you want your
+   addons.
+2. Put `wotlk-nx.nro` in `sdmc:/wotlk-nx/` (or `sdmc:/switch/`) and start it from the homebrew menu. A release build
+   looks for newer releases on GitHub while it loads and offers them; `WOTLKNX_UPDATE=0` turns that off.
+3. Optional: `sdmc:/wotlk-nx/benilla.env` sets the server, login and character (below). Without it, type them on the
+   login screen with the system keyboard (tap the text box).
 
-The format readers and UI engine core are plain Rust without Bevy. The world renderer can also run
-without the game attached. See [`docs/MAP.md`](docs/MAP.md) for the generated map of crates,
-subsystems, instruments, and scripts.
+Settings and saved state live in `sdmc:/wotlk-nx/benilla-config/`, as on the PC.
 
-## Requirements
+### benilla.env
 
-- An English World of Warcraft 3.3.5a client installation (build 12340).
-- A 3.3.5a server. Development uses
-  [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk).
-- Stable Rust and a C compiler because the vendored Lua runtime is built from source.
-  - Windows: the MSVC build tools selected by the Rust installer.
-  - Linux: ALSA and udev development packages, plus `pkg-config`.
-  - macOS: Xcode Command Line Tools.
+`KEY=VALUE` lines, read at start:
 
-## Quick start
+| Key | Does |
+|---|---|
+| `WOW_HOST` | the logon server (`localhost:3724` by default) |
+| `WOW_USER`, `WOW_PASS` | log in without typing (kept in plain text on the card) |
+| `WOW_CHAR` | select a character without typing |
+| `WOTLKNX_FPS=1` | the fps overlay, top left |
+| `WOTLKNX_UPDATE=0` | no update check |
+| `WOTLKNX_PROFILE=1` | a sampling profiler: `samples.txt` every 30 s, named by `switch/profile.py` |
+| `WOTLKNX_GPU_PIPELINES=1` | GPU time per pipeline in the log |
 
-Clone the repository, point `WOW_INSTALL` at your 3.3.5a installation and run `cargo play`. It builds the player binary and starts it; the first build
-takes a while.
+Vertical sync is the game's own Video option.
 
-### Windows PowerShell
+## Controls
 
-```powershell
-git clone https://github.com/Onixaz/benilla-wotlk.git
-Set-Location benilla-wotlk
-$env:WOW_INSTALL = "C:\Games\World of Warcraft 3.3.5a"
-cargo play
-```
+With the Joy-Con (benilla-pad; its controller menu, −, rebinds every button on every layer):
 
-### Linux and macOS
+| Button | In the world | In menus and windows |
+|---|---|---|
+| Left stick | move | |
+| Right stick | camera (L or R held: zoom) | cursor |
+| B | jump | back |
+| A, Y, X | action slots 1, 2, 3 | A: confirm / click |
+| D-pad | action slots 4–7 | move between buttons |
+| ZL, ZR (held) | the other action layers | |
+| L, R | target nearest friend, enemy | |
+| Left stick press | autorun | |
+| Right stick press | interact: talk, loot, skin, attack | |
+| + | window wheel | |
+| − | controller menu | |
 
-```sh
-git clone https://github.com/Onixaz/benilla-wotlk.git
-cd benilla-wotlk
-WOW_INSTALL=/path/to/WoW cargo play
-```
+Touch moves the cursor and clicks; a tap on a text box opens the system keyboard. A USB keyboard and mouse work as on
+the PC.
 
-### Faster with a profile
+## Build
 
-`cargo play` reads a profile of how the game runs on your machine when you have recorded one, and
-builds with profile-guided optimization (PGO): about 10-20% more frames per second.The repository
-does not ship a profile for `cargo play`; record one once:
+Needs devkitPro (devkitA64, libnx, switch-tools) and the Rust nightly in `switch/env.sh` with `rust-src`. Then:
 
 ```sh
-rustup component add llvm-tools
-scripts/pgo-train.sh
-cargo play
+sh switch/build-benilla.sh -j2        # target/wotlk-nx.nro
 ```
 
-`scripts/pgo-train.sh` builds an instrumented copy of `cargo play`'s client and starts it: log in,
-play a few minutes through busy places such as a city or a fight, then quit the game normally. It
-writes the profile to `benilla-config/pgo/`, replacing the last one, and the next `cargo play`
-rebuilds with it, about 25 minutes of building for the two. `cargo play` says whether it built
-with a profile. Record a new one after a Rust toolchain update. See
-[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+Releases come from GitHub Actions (`.github/workflows/switch.yml`): pushing a tag `nx-v<version>` builds the release
+profile (`WOTLKNX_SHIP=1`: every dependency in one codegen unit) numbered with the run number and publishes it as
+`build-<n>` with the stored `wotlk-nx-switch.zip` the updater reads. `switch/release.sh` publishes a local build the
+same way. `WOTLKNX_DEKO3D_DEBUG=1` links deko3d's debug library and names the work in a GPU fault.
 
-For the last few percent, set `BENILLA_PGO_LTO=fat` for both commands. They then use fat link-time
-optimization (LTO), with a profile of its own, which measures 3–7% more FPS than the
-default thin LTO at Acherus. Each build takes about three times as long, about an hour of building
-for the first run. In PowerShell, set `$env:BENILLA_PGO_LTO = "fat"` first.
+The PC client is upstream's: [benilla-wotlk](https://github.com/Onixaz/benilla-wotlk#readme).
 
-```sh
-BENILLA_PGO_LTO=fat scripts/pgo-train.sh
-BENILLA_PGO_LTO=fat cargo play
-```
+## What nx-mod changed
 
-### Development build
+- A Rust std target for the Switch (`aarch64-nintendo-switch-newlib`, `switch/`), linked with libnx;
+  `third_party/libc` with Horizon's socket and type layouts fixed for 64-bit (they were the 3DS's).
+- `third_party/wgpu-hal`: a deko3d backend in wgpu's GL slot, with naga → uam shader translation cached on the SD
+  card, per-pass GPU timing, and upstream's Vulkan stall patch alongside. `third_party/wgpu` and `wgpu-core` turn that
+  slot on for the Switch.
+- `crates/benilla-uam`: uam, deko3d's shader compiler, built into the NRO.
+- `crates/benilla-horizon`: what libnx gives Rust (random numbers, `sysconf`, sockets), a thread-caching allocator,
+  threads spread over the cores, the launch picture, the system keyboard, the self-updater and a sampling profiler.
+- `crates/benilla-app/src/switch.rs`: the window, the applet loop, HID input (the Joy-Con as a gamepad), the SD card
+  paths and `benilla.env`.
+- `crates/benilla-pad`: lucasvallejodev's controller crate, made to work with today's upstream, with Nintendo button
+  names and a Switch layout.
+- `main` mirrors upstream; this work is on `switch`.
 
-`cargo dev` (or `cargo debug`) builds and runs the development build: incremental, with debug
-assertions and the developer instruments compiled in, so it is the one to work on Benilla with and
-not the one to play on. It also finds a `WoW` link at the repository root. See
-[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+## Credits
 
-## Configuration
+- **[Onixaz](https://github.com/Onixaz/benilla-wotlk)** and contributors: benilla-wotlk.
+- **[samwhosung](https://github.com/samwhosung/benilla)** and contributors: benilla, which benilla-wotlk began as.
+- **[lucasvallejodev](https://github.com/lucasvallejodev/benilla-gamepad)**: benilla-pad, the controller crate.
+- **[thelinkin3000](https://github.com/thelinkin3000/halo-ce-universal)** and nx-mod: the self-updater design, from
+  haloce-nx.
+- **[gfx-rs](https://github.com/gfx-rs/wgpu)**: wgpu and naga.
+- **[devkitPro](https://github.com/devkitPro/uam)**: uam, deko3d, devkitA64; **[switchbrew](https://github.com/switchbrew/libnx)**: libnx.
+- **[centollOS](https://github.com/centollOS/SwitchWakerHD)**: the uam patches.
+- **[rust-lang](https://github.com/rust-lang/libc)**: the libc crate.
 
-| Setting | Purpose |
-| --- | --- |
-| `WOW_INSTALL` | Path to the installation, the folder `Wow.exe` and `Data` sit in. The game data is read from its `Data`, and a server running Warden has its memory checks answered from its `Wow.exe`. |
-| `WOW_HOST` | Authentication endpoint; defaults to `localhost:3724`. A hostname or `host:port` is accepted. |
-| `WOW_USER` and `WOW_PASS` | Optional credentials for automatic login. Set both or use the login screen. |
-| `WOW_CHAR` | Optional character name for automatic selection. |
+## Legal
 
-Settings, caches, saved variables, logs and screenshots are written where `Wow.exe` writes them
-(`WTF/`, `Cache/`, `Logs/`, `Screenshots/`), and addons are read from `Interface/AddOns/`: in the
-installation directory for the `cargo ship` drop-in, and otherwise in `benilla-config/` beside
-the binary (`target/play/benilla-config/` for `cargo play` and the training run), or at the
-repository root for `cargo dev`.
-
-## Documentation
-
-- [`docs/METHOD.md`](docs/METHOD.md) defines the reference-first development method and safety
-  rules.
-- [`docs/MAP.md`](docs/MAP.md) is the generated map of what is currently implemented.
-- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) covers development setup, validation, and pull
-  requests.
-- [`docs/DEVIATIONS.md`](docs/DEVIATIONS.md) lists what benilla leaves out of 3.3.5a on purpose and why.
-
-Issues and pull requests are welcome. Bugs, questions, and ideas can also be discussed on
-[Discord](https://discord.gg/wJSJx467G4).
-
-## Acknowledgements and legal
-
-Benilla-Wotlk is an independent fan project and is not affiliated with or endorsed by Blizzard
-Entertainment. It ships no assets extracted from World of Warcraft: no models, sounds, maps, MPQ
-contents, or FrameXML. You must provide your own legally obtained 3.3.5a installation. The files
-under `crates/benilla-app/assets/ui/` are project-owned adapters and interface elements, not copies
-from the game.
-
-World of Warcraft is a trademark of Blizzard Entertainment, Inc. Benilla-Wotlk code is available under
-your choice of the [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE) license. Vendored components
-under `third_party/`, including the Kira audio engine and Lua 5.1, retain their own licenses.
+Unofficial fan project, not affiliated with Blizzard Entertainment or Nintendo. World of Warcraft is a trademark of
+Blizzard Entertainment. Code is under MIT or Apache 2.0, as upstream; uam is under zlib and MIT; the updater's design
+is CC0. Running homebrew needs custom firmware, which breaks Nintendo's terms and can get a console banned.
